@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <chrono>
 #include <opencv2/opencv.hpp> // Include OpenCV headers
 using namespace std;
 
@@ -83,6 +84,7 @@ public:
         int depth = scaleSpace.size();
         // for each point in scaleSpace (h,w,layer), we check if it's the maxmimum of its neighbors
         // neighbors: 3x3xlayer
+        auto start = chrono::high_resolution_clock::now();
         for(int i=0; i<rows; i++){
             for(int j=0; j<cols; j++){
                 for(int k=0; k<depth; k++){
@@ -95,6 +97,10 @@ public:
                 }
             }
         }
+        auto end = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+
+        cout << "Time taken by feature extraction: " << duration.count() << " milliseconds" << std::endl;
         return result;
     }
 
