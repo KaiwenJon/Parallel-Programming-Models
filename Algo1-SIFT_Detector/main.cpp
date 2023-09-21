@@ -3,6 +3,10 @@
 #include <chrono>
 #include <opencv2/opencv.hpp> // Include OpenCV headers
 using namespace std;
+#define SEQUENTIAL_VERSION 1
+#define OPENMP_VERSION 2
+
+static int version = SEQUENTIAL_VERSION;
 
 struct Point{
     int cx;
@@ -22,7 +26,13 @@ public:
 
     vector<Point> detect(const cv::Mat& inputImage){
         vector<cv::Mat> scaleSpace = buildScaleSpace(inputImage);
-        vector<Point> interestPoints = extractInterestPoints(scaleSpace);
+        vector<Point> interestPoints;
+        if(version == SEQUENTIAL_VERSION){
+           interestPoints = extractInterestPoints_SEQ(scaleSpace);
+        }
+        else if(version == OPENMP_VERSION){
+            interestPoints = extractInterestPoints_OPENMP(scaleSpace);
+        }
         return interestPoints; 
     }
 
@@ -76,7 +86,7 @@ public:
         return true;
     }
 
-    vector<Point> extractInterestPoints(const vector<cv::Mat>& scaleSpace){
+    vector<Point> extractInterestPoints_SEQ(const vector<cv::Mat>& scaleSpace){
         vector<Point> result;
         int kernel_width=5;
         int rows = scaleSpace[0].rows;
@@ -91,6 +101,38 @@ public:
                     // cout << i << " " << j << " " << k << endl;
                     if(isMaximumNeighbors(i, j, k, kernel_width, scaleSpace)){
                         float radius = sigmas[k] * 1.414;
+                        result.push_back({i, j, radius});
+                        // cout << sigmas[k] << " ";
+                    }
+                }
+            }
+        }
+        auto end = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+
+        cout << "Time taken by feature extraction: " << duration.count() << " milliseconds" << std::endl;
+        return result;
+    }
+
+
+
+    vector<Point> extractInterestPoints_OPENMP(const vector<cv::Mat>& scaleSpace){
+        vector<Point> result;
+        int kernel_width=5;
+        int rows = scaleSpace[0].rows;
+        int cols = scaleSpace[0].cols;
+        int depth = scaleSpace.size();
+        // for each point in scaleSpace (h,w,layer), we check if it's the maxmimum of its neighbors
+        // neighbors: 3x3xlayer
+        auto start = chrono::high_resolution_clock::now();
+        #pragma omp parallel for
+        for(int i=0; i<rows; i++){
+            for(int j=0; j<cols; j++){
+                for(int k=0; k<depth; k++){
+                    // cout << i << " " << j << " " << k << endl;
+                    if(isMaximumNeighbors(i, j, k, kernel_width, scaleSpace)){
+                        float radius = sigmas[k] * 1.414;
+                        #pragma omp critical
                         result.push_back({i, j, radius});
                         // cout << sigmas[k] << " ";
                     }
@@ -119,12 +161,21 @@ private:
 
 
 int main(int argc, char** argv) {
-    
-    if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " <input_image_path>" << endl;
+    if (argc != 3) {
+        cerr << "Usage: " << argv[0] << " <version> <input_image_path>" << endl;
+        cerr << "Available versions: --sequential, --openmp" << endl;
         return 1;
     }
-    const char* inputImagePath = argv[1];
+    if(strcmp(argv[1], "--openmp") == 0){
+        version = OPENMP_VERSION;
+        cout << "Running openmp version." << endl;
+    }
+    else{
+        version = SEQUENTIAL_VERSION;
+        cout << "Running sequential version." << endl;
+    }
+
+    const char* inputImagePath = argv[2];
     cv::Mat rgb_image = cv::imread(inputImagePath);
 
     if (rgb_image.empty()) {
@@ -135,20 +186,8 @@ int main(int argc, char** argv) {
     int width = rgb_image.cols;
     int height = rgb_image.rows;
 
-    cv::Mat grayscaleImage(height, width, CV_8U);
-
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
-            cv::Vec3b rgbPixel = rgb_image.at<cv::Vec3b>(i, j);
-
-            int r = rgbPixel[2];  
-            int g = rgbPixel[1];  
-            int b = rgbPixel[0];  
-            int grayscaleValue = (r + g + b) / 3;
-
-            grayscaleImage.at<uchar>(i, j) = grayscaleValue;
-        }
-    }
+    cv::Mat grayscaleImage;
+    cv::cvtColor(rgb_image, grayscaleImage, cv::COLOR_BGR2GRAY);
 
     cv::Mat floatImage;
     grayscaleImage.convertTo(floatImage, CV_32F);
