@@ -28,8 +28,8 @@ export OMP_NUM_THREADS=4 // if using --openmp
 | OpenMP (4 threads) | 29                    |
 | Pthread (4 threads) | 30                    |
 
+![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/04d188f8-13ca-4aeb-95ce-e2242d487e9c)
 
-![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/10a847a1-5a61-4f9a-b278-58555c387040)
 
 
 ![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/1dcb8294-33c2-49e6-9d9c-bd46060bc2ca)
