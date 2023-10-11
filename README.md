@@ -11,10 +11,10 @@ cd Algo1-SIFT_Detector
 mkdir build && cd build
 cmake ..
 make
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=4 // if using --openmp
 ./opencvTest <version> <input_image_path>
 
-// Available versions: --sequential, --openmp
+// Available versions: --sequential, --openmp, --pthread
 // for example: ./opencvTest --openmp ../data/butterfly.jpg
 // Result will be saved to ../result.detection.jpg
 ```
@@ -25,6 +25,7 @@ export OMP_NUM_THREADS=4
 | Sequential      | 115                    |
 | OpenMP (2 threads) | 58                    |
 | OpenMP (4 threads) | 29                    |
+| Pthread (4 threads) | 30                    |
 
 
 ![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/1dcb8294-33c2-49e6-9d9c-bd46060bc2ca)
