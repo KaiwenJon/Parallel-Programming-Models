@@ -24,8 +24,12 @@ export OMP_NUM_THREADS=4 // if using --openmp
 | --------------- | ------------------------ |
 | Sequential      | 115                    |
 | OpenMP (2 threads) | 58                    |
+| Pthread (2 threads) | 60                    |
 | OpenMP (4 threads) | 29                    |
 | Pthread (4 threads) | 30                    |
+
+
+![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/10a847a1-5a61-4f9a-b278-58555c387040)
 
 
 ![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/1dcb8294-33c2-49e6-9d9c-bd46060bc2ca)
