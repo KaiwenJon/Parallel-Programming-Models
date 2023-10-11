@@ -1,5 +1,5 @@
 # SIFT Detector
-Sequential and OpenMP (Parallel feature extraction) version implemented.
+Sequential, OpenMP, and Pthread (Parallel feature extraction) version implemented.
 
 ## Algorithm
 Using DoG (Difference of Gaussian) to build a scale space. From there, find interest points using NMS (Non-maximum suppression). Draw each SIFT interest point on the image with its feature scale.
