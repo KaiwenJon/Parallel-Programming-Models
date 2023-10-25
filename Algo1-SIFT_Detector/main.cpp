@@ -3,18 +3,24 @@
 #include <chrono>
 #include <opencv2/opencv.hpp> // Include OpenCV headers
 #include <pthread.h>
-using namespace std;
-#define SEQUENTIAL_VERSION 1
-#define OPENMP_VERSION 2
-#define PTHREAD_VERSION 3
+#include <mpi.h>
 
-static int version = SEQUENTIAL_VERSION;
+using namespace std;
+
+
+typedef enum {
+    SEQUENTIAL_VERSION,
+    OPENMP_VERSION,
+    PTHREAD_VERSION,
+    mpi_VERSION
+} Version;
 
 pthread_mutex_t resultMutex;
 struct Point{
     int cx;
     int cy;
     float radius;
+    Point(): cx(0), cy(0), radius(0) {};
     Point(int cx, int cy, float radius) : cx(cx), cy(cy), radius(radius){};
 };
 class SIFT_Detector;
@@ -30,7 +36,7 @@ struct ThreadData {
 
 class SIFT_Detector{
 public:
-    SIFT_Detector(float sigma){
+    SIFT_Detector(float sigma, Version version) : version(version){
         sigmas = {sigma};
         for(int i=0; i<10; i++){
             sigmas.push_back(sigmas.back() * 1.5);
@@ -48,6 +54,9 @@ public:
         }
         else if(version == PTHREAD_VERSION){
             interestPoints = extractInterestPoints_PTHREAD(scaleSpace);
+        }
+        else if(version == mpi_VERSION){
+            interestPoints = extractInterestPoints_MPI(scaleSpace);
         }
         return interestPoints; 
     }
@@ -162,6 +171,59 @@ public:
         return result;
     }
 
+    vector<Point> extractInterestPoints_MPI(const vector<cv::Mat>& scaleSpace){
+        vector<Point> result;
+        int kernel_width=5;
+        int rows = scaleSpace[0].rows;
+        int cols = scaleSpace[0].cols;
+        int depth = scaleSpace.size();
+
+        auto start = chrono::high_resolution_clock::now();
+        int rank, size;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+        int rowsPerProcess = rows / size;
+        int startRow = rank * rowsPerProcess;
+        int endRow = (rank == size - 1) ? rows : (rank + 1) * rowsPerProcess;
+
+        for(int i=startRow; i<endRow; i++){
+            for(int j=0; j<cols; j++){
+                for(int k=0; k<depth; k++){
+                    if(isMaximumNeighbors(i, j, k, kernel_width, scaleSpace)){
+                        float radius = sigmas[k] * 1.414;
+                        result.push_back({i, j, radius});
+                    }
+                }
+            }
+        }
+
+        // Gather results from all processes
+        if(rank != 0){
+            // Send local results to the root process
+            int localSize = result.size();
+            MPI_Send(&localSize, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(result.data(), localSize * sizeof(Point), MPI_BYTE, 0, 1, MPI_COMM_WORLD);
+        } else {
+            // Root process
+            for(int i=1; i<size; i++){
+                int localSize;
+                MPI_Recv(&localSize, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                vector<Point> localResult(localSize);
+                MPI_Recv(localResult.data(), localSize * sizeof(Point), MPI_BYTE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                result.insert(result.end(), localResult.begin(), localResult.end());
+            }
+        }
+        auto end = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+
+        cout << "Time taken by feature extraction: " << duration.count() << " milliseconds" << std::endl;
+        
+
+        return result;
+    }
+
+
     static void* extractInterestPoints_Thread(void* arg) {
         ThreadData* data = (ThreadData*)arg;
         int depth = data->scaleSpace->size();
@@ -183,7 +245,7 @@ public:
         vector<Point> result;
         int kernel_width = 5;
         int rows = scaleSpace[0].rows;
-        int numThreads = 4;  // use 4 threads
+        int numThreads = 2;  // use 4 threads
         pthread_t threads[numThreads];
         ThreadData data[numThreads];
 
@@ -231,13 +293,16 @@ public:
     }
 private:
     vector<float> sigmas;
+    Version version;
 };
 
 
 int main(int argc, char** argv) {
+    MPI_Init(&argc, &argv);
+    Version version = SEQUENTIAL_VERSION;
     if (argc != 3) {
         cerr << "Usage: " << argv[0] << " <version> <input_image_path>" << endl;
-        cerr << "Available versions: --sequential, --openmp" << endl;
+        cerr << "Available versions: --sequential, --openmp --pthread --mpi" << endl;
         return 1;
     }
     if(strcmp(argv[1], "--openmp") == 0){
@@ -247,6 +312,10 @@ int main(int argc, char** argv) {
     else if(strcmp(argv[1], "--pthread") == 0){
         version = PTHREAD_VERSION;
         cout << "Running pthread version." << endl;
+    }
+    else if(strcmp(argv[1], "--mpi") == 0){
+        version = mpi_VERSION;
+        cout << "Running mpi version." << endl;
     }
     else{
         version = SEQUENTIAL_VERSION;
@@ -270,11 +339,11 @@ int main(int argc, char** argv) {
     cv::Mat floatImage;
     grayscaleImage.convertTo(floatImage, CV_32F);
     float sigma = 2.0f;
-    SIFT_Detector detector(sigma);
+    SIFT_Detector detector(sigma, version);
     vector<Point> interestPoints = detector.detect(floatImage);
     cout << "Number of Detected Features: " << interestPoints.size() << endl;
     detector.visualizePoints(rgb_image, interestPoints);
 
-
+    MPI_Finalize();
     return 0;
 }

@@ -17,6 +17,9 @@ export OMP_NUM_THREADS=4 // if using --openmp
 // Available versions: --sequential, --openmp, --pthread
 // for example: ./opencvTest --openmp ../data/butterfly.jpg
 // Result will be saved to ../result.detection.jpg
+
+// If using mpi, run this command:
+mpiexec -n <number of threads> ./opencvTest --mpi ../data/butterfly.jpg
 ```
 
 ## Execution Time
@@ -25,8 +28,10 @@ export OMP_NUM_THREADS=4 // if using --openmp
 | Sequential      | 115                    |
 | OpenMP (2 threads) | 58                    |
 | Pthread (2 threads) | 60                    |
+| MPI (2 threads) | 56                    |
 | OpenMP (4 threads) | 29                    |
 | Pthread (4 threads) | 30                    |
+| MPI (4 threads) | 32                    |
 
 ![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/04d188f8-13ca-4aeb-95ce-e2242d487e9c)
 

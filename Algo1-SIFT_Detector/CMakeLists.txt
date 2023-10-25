@@ -8,9 +8,12 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 # Find OpenMP package
 find_package(OpenMP REQUIRED)
 
+find_package(MPI)
+include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+
 message(STATUS "OpenCV_INCLUDE_DIRS = ${OpenCV_INCLUDE_DIRS}")
 message(STATUS "OpenCV_LIBS = ${OpenCV_LIBS}")
 
 add_executable(opencvTest main.cpp)
 
-target_link_libraries(opencvTest PRIVATE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
+target_link_libraries(opencvTest PRIVATE ${OpenCV_LIBS} OpenMP::OpenMP_CXX ${MPI_C_LIBRARIES} ${MPI_LIBRARIES})
