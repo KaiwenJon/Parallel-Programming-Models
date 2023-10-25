@@ -1,5 +1,5 @@
 # SIFT Detector
-Sequential, OpenMP, and Pthread (Parallel feature extraction) version implemented.
+Sequential, OpenMP, MPI, and Pthread (Parallel feature extraction) version implemented.
 
 ## Algorithm
 Using DoG (Difference of Gaussian) to build a scale space. From there, find interest points using NMS (Non-maximum suppression). Draw each SIFT interest point on the image with its feature scale.
@@ -33,9 +33,9 @@ mpiexec -n <number of threads> ./opencvTest --mpi ../data/butterfly.jpg
 | Pthread (4 threads) | 30                    |
 | MPI (4 threads) | 32                    |
 
-![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/04d188f8-13ca-4aeb-95ce-e2242d487e9c)
-
+![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/c15578c0-9778-423c-ada5-72798e359bd6)
 
 
 ![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/1dcb8294-33c2-49e6-9d9c-bd46060bc2ca)
-![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/1817c574-59e1-40b7-b93c-fbf1a693ec2b)
+![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/25e30501-a3e1-4106-bdf6-50c8980d25e0)
+
