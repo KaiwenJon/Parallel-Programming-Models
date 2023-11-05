@@ -18,3 +18,4 @@ export OMP_NUM_THREADS=4 // if using --openmp
 // Result will be saved to ../result/detection.jpg
 ```
 
+![image](https://github.com/KaiwenJon/Parallel-Programming-Models/assets/70893513/e78f5b63-1445-4ef4-b6a9-dca97c7f82c0)
