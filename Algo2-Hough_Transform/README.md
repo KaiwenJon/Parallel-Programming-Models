@@ -13,7 +13,7 @@ make
 export OMP_NUM_THREADS=4 // if using --openmp
 ./houghTest <version> <input_image_path>
 
-// Available versions: --sequential
+// Available versions: --sequential --openmp
 // for example: ./houghTest --openmp ../data/coins.jpg
 // Result will be saved to ../result/detection.jpg
 ```

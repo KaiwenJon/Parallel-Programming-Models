@@ -27,7 +27,7 @@ class Hough_Circle{
 public:
     Hough_Circle(Version version): version(version) {}
 
-    vector<Point> detect(const cv::Mat& inputImage){
+    vector<Point> _detect_Seq(const cv::Mat& inputImage){
         int height = inputImage.rows;
         int width = inputImage.cols;
 
@@ -86,6 +86,74 @@ public:
         }
 
         return circles;
+    }
+
+    vector<Point> _detect_Openmp(const cv::Mat& inputImage){
+        int height = inputImage.rows;
+        int width = inputImage.cols;
+
+        vector<int> radius_candidate = {20, 25, 28, 30, 85};
+        
+        vector<cv::Mat> parameterSpace;
+        for (const int& r: radius_candidate) {
+            cv::Mat layer(height, width, CV_32S, cv::Scalar(0));
+            parameterSpace.push_back(layer);
+        }
+        cv::Mat edges;
+        cv::Canny(inputImage, edges, 255, 255);
+
+        cout << "Voting in parameter space..." << endl;
+        #pragma omp parallel for collapse(3)
+        for(int r_idx=0; r_idx<radius_candidate.size(); r_idx++){
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int r = radius_candidate[r_idx];
+                    if (edges.at<uchar>(y, x) > 0) { // If it's an edge point
+                        for (int theta = 0; theta < 360; theta++) {
+                            int a = x - r * cos(theta * CV_PI / 180);
+                            int b = y - r * sin(theta * CV_PI / 180);
+                            if (a >= 0 && a < width && b >= 0 && b < height) {
+                                #pragma omp atomic
+                                parameterSpace[r_idx].at<int>(b, a)++;
+                            }
+                        }
+                        
+                    }
+                }
+            }
+        }
+
+        cout << "Finding maximum in parameter space..." << endl;
+        // Find circle candidates in the accumulator matrix by thresholding.
+        int threshold = 150; // Adjust this threshold as needed.
+        vector<Point> circles; // (x, y, radius)
+
+        #pragma omp parallel for collapse(3)
+        for (int i=0; i<radius_candidate.size(); i++) {
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int r = radius_candidate[i];
+                    if (parameterSpace[i].at<int>(y, x) >= threshold && isMaximumNeighbor(parameterSpace[i], y, x)) {
+                        #pragma omp critical
+                        circles.push_back({x, y, r});
+                    }
+                }
+            }
+        }
+
+        return circles;
+    }
+
+    vector<Point> detect(const cv::Mat& inputImage){
+        if(version == SEQUENTIAL_VERSION){
+            return _detect_Seq(inputImage);
+        }
+        else if (version == OPENMP_VERSION){
+            return _detect_Openmp(inputImage);
+        }
+        else{
+            return _detect_Seq(inputImage);
+        }
     }
 
     bool isMaximumNeighbor(const cv::Mat& layer, int y, int x){
