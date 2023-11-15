@@ -1,5 +1,5 @@
 # Hough Circle Transform
-Sequential version implemented.
+Sequential, openmp, pthread version implemented.
 
 ## Algorithm
 Given an image, build the parameter space and do the voting to extract circle features.
@@ -13,7 +13,7 @@ make
 export OMP_NUM_THREADS=4 // if using --openmp
 ./houghTest <version> <input_image_path>
 
-// Available versions: --sequential --openmp
+// Available versions: --sequential --openmp --pthread
 // for example: ./houghTest --openmp ../data/coins.jpg
 // Result will be saved to ../result/detection.jpg
 ```
