@@ -338,7 +338,7 @@ public:
         cv::Mat edges;
         cv::Canny(inputImage, edges, 255, 255);
 
-        cout << "Voting in parameter space... with pthread, rank: " << rank  << endl;
+        cout << "Voting in parameter space... with mpi, rank: " << rank  << endl;
 
         auto start = chrono::high_resolution_clock::now();
         for (int y = startRow; y < endRow; y++) {
@@ -358,37 +358,33 @@ public:
             }
         }
         vector<cv::Mat> global_parameterSpace;
-        if(rank == 0){
-            for (const int& r: radius_candidate) {
-                cv::Mat layer(height, width, CV_32S, cv::Scalar(0));
-                global_parameterSpace.push_back(layer);
+
+        // now combine local voting to global
+        for(int i=0; i< radius_candidate.size(); i++){
+            cv::Mat& localImage = local_parameterSpace[i];
+            cv::Mat globalImage(height, width, CV_32S, cv::Scalar(0));
+
+            // Convert the local image to a 1D array of floats
+            vector<int> localData(localImage.cols * localImage.rows);
+            vector<int> globalData(globalImage.cols * globalImage.rows);
+
+            for (int i = 0; i < localImage.rows; ++i) {
+                for (int j = 0; j < localImage.cols; ++j) {
+                    localData[i * localImage.cols + j] = localImage.at<int>(i, j);
+                }
             }
-        }
-        // MPI_Gather(local_parameterSpace.data(), height * width * radius_candidate.size(), MPI_INT, 
-        //     global_parameterSpace.data(), height * width * radius_candidate.size(), MPI_INT, 0, MPI_COMM_WORLD);
-        for (auto& image : local_parameterSpace) {
-            if (!image.isContinuous()) {
-                cout << "local not conti!!\n";
-                image = image.clone(); // Create a contiguous copy of the image data
+
+            MPI_Allreduce(localData.data(), globalData.data(), localData.size(), MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            for (int i = 0; i < globalImage.rows; ++i) {
+                for (int j = 0; j < globalImage.cols; ++j) {
+                    globalImage.at<int>(i, j) = globalData[i * globalImage.cols + j];
+                }
             }
+            if(rank == 0){
+                global_parameterSpace.push_back(globalImage);
+            }   
         }
-        for (auto& image : global_parameterSpace) {
-            if (!image.isContinuous()) {
-                cout << "global not conti!!\n";
-                image = image.clone(); // Create a contiguous copy of the image data
-            }
-        }
-        
-        MPI_Gather(
-            local_parameterSpace.data(), // Local data pointer
-            local_parameterSpace.size(), // Number of local images
-            MPI_BYTE, // Data type (cv::Mat is a complex data structure)
-            global_parameterSpace.data(), // Global data pointer
-            local_parameterSpace.size(), // Number of local images (same as send count)
-            MPI_BYTE, // Data type (cv::Mat is a complex data structure)
-            0, // Root process (rank 0)
-            MPI_COMM_WORLD
-        );
+
 
         auto end = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
@@ -399,7 +395,6 @@ public:
         int threshold = 150;
         if(rank == 0){
             for (int i=0; i<radius_candidate.size(); i++) {
-                cout << global_parameterSpace[i].size() << endl;
                 int r = radius_candidate[i];
                 for (int y = 0; y < height; y++) {
                     for (int x = 0; x < width; x++) {
